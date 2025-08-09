@@ -12,8 +12,11 @@ from core.database import get_db
 from accounts.schemas import *
 from accounts.models import *
 
+# Authentication models
+from auth.auth_token import generate_jwt_token, retrieve_user_via_jwt
+
 # Utils
-from utils import hash_password, create_otp_and_store_in_cookie
+from utils import hash_password, create_otp_and_store_in_cookie, validate_password
 
 accounts_router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -50,7 +53,12 @@ async def activate_user(ser: UserActivateSchema, username: str = Cookie(None), d
 
 
 @accounts_router.post("/get_token",)
-async def get_token(ser: GetTokenSchema, db: Session = Depends(get_db)):
+async def get_token(ser: GetTokenSchema):
+    is_authenticated = validate_password(ser.username, ser.password)
+    if is_authenticated:
+        jwt_token = generate_jwt_token(ser.username)
+        return JSONResponse({'token': jwt_token}, status_code=status.HTTP_200_OK)
+    return JSONResponse({'message': 'invalid username or password.'}, status_code=status.HTTP_400_BAD_REQUEST)
 
 
 
