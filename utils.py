@@ -24,8 +24,8 @@ def hash_password(password):
 
 def validate_password(username, password):
     user = db.query(User).filter(User.username == username).one_or_none()
-    if not user:
-        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
+    if not user or user.is_active is False:
+        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found or is not active')
     password_validation = bcrypt.verify(password, user.password)
     if password_validation:
         return True

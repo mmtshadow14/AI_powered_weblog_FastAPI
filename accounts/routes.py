@@ -13,7 +13,7 @@ from accounts.schemas import *
 from accounts.models import *
 
 # Authentication models
-from auth.auth_token import generate_jwt_token, retrieve_user_via_jwt
+from auth.auth_token import generate_jwt_token
 
 # Utils
 from utils import hash_password, create_otp_and_store_in_cookie, validate_password
@@ -21,8 +21,12 @@ from utils import hash_password, create_otp_and_store_in_cookie, validate_passwo
 accounts_router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 
+# user register route
 @accounts_router.post("/register",)
 async def register_user(ser: UserRegisterSchema, response: Response, db: Session = Depends(get_db)):
+    """
+    with this route the user can register in the app
+    """
     user_existence = db.query(User).filter_by(username=ser.username).one_or_none()
     if user_existence:
         return JSONResponse({'message': 'invalid username'}, status_code=status.HTTP_406_NOT_ACCEPTABLE)
@@ -38,8 +42,12 @@ async def register_user(ser: UserRegisterSchema, response: Response, db: Session
     return JSONResponse({'message': 'something went wrong'}, status_code=status.HTTP_412_PRECONDITION_FAILED, )
 
 
+# user activation route
 @accounts_router.post("/activate",)
 async def activate_user(ser: UserActivateSchema, username: str = Cookie(None), db: Session = Depends(get_db)):
+    """
+    with this route the user can activate their account with the otp code sent to them
+    """
     otp_object = db.query(Otp).filter_by(username=username).one_or_none()
     if otp_object:
         if otp_object.code == ser.code:
@@ -52,8 +60,12 @@ async def activate_user(ser: UserActivateSchema, username: str = Cookie(None), d
     return JSONResponse({'message': 'no otp codes found'}, status_code=status.HTTP_404_NOT_FOUND)
 
 
+# get jwt token route
 @accounts_router.post("/get_token",)
 async def get_token(ser: GetTokenSchema):
+    """
+    with this route the user can get JWT token to authenticate in the app
+    """
     is_authenticated = validate_password(ser.username, ser.password)
     if is_authenticated:
         jwt_token = generate_jwt_token(ser.username)
