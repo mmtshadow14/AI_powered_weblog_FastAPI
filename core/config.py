@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     DEBUG: bool = True
-    DATABASE_URL: str = "postgresql://postgres:postgres@db:5432/weblog"
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/weblog"
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "weblog"

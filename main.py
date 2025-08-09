@@ -1,6 +1,9 @@
+# FastAPI packages
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
+# Accounts app models
+from accounts.routes import accounts_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -10,3 +13,4 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(Lifespan=lifespan)
+app.include_router(accounts_router)
