@@ -29,12 +29,10 @@ def validate_password(db: Session, username, password):
     return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Incorrect password')
 
 
-def generate_otpcode(db: Session, user_id):
+def generate_otpcode(user_id, response):
     otp_obj = Otp(user=user_id, code=random.randint(1000, 9999))
+    response.set_cookie(key='user_id', value=otp_obj.user)
     print('==============================')
     print(otp_obj.code)
     print('==============================')
-    db.add(otp_obj)
-    db.commit()
-    db.refresh(otp_obj)
-    return True
+    return otp_obj

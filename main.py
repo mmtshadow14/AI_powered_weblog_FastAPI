@@ -1,6 +1,7 @@
 # FastAPI packages
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+from starlette.middleware.sessions import SessionMiddleware
 
 # Accounts app models
 from accounts.routes import accounts_router
@@ -8,6 +9,7 @@ from accounts.routes import accounts_router
 # Posts app models
 from posts.routes import posts_router
 
+app = FastAPI()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
