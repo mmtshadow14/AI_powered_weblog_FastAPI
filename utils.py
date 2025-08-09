@@ -14,15 +14,12 @@ from core.database import Session
 # Account app models
 from accounts.models import User, Otp
 
-# DB instance
-db = Session()
-
 
 def hash_password(password):
     return bcrypt.hash(password)
 
 
-def validate_password(username, password):
+def validate_password(db: Session, username, password):
     user = db.query(User).filter(User.username == username).one_or_none()
     if not user or user.is_active is False:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found or is not active')
@@ -32,10 +29,12 @@ def validate_password(username, password):
     return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Incorrect password')
 
 
-def create_otp_and_store_in_cookie(response, username):
-    new_otp = Otp(user=username, otp=random.randint(1000, 9999))
-    response.set_cookie(key='username', value=new_otp.code)
-    db.add(new_otp)
+def generate_otpcode(db: Session, user_id):
+    otp_obj = Otp(user=user_id, code=random.randint(1000, 9999))
+    print('==============================')
+    print(otp_obj.code)
+    print('==============================')
+    db.add(otp_obj)
     db.commit()
-    db.refresh(new_otp)
+    db.refresh(otp_obj)
     return True

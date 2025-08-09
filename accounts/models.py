@@ -30,7 +30,7 @@ class Otp(Base):
     """
     __tablename__ = 'otps'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user = Column(String, ForeignKey('users.username'))
+    user = Column(Integer, ForeignKey('users.id'), nullable=False, unique=True)
     code = Column(Integer)
 
     created_at = Column(DateTime, default=func.now())

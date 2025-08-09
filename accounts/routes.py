@@ -16,7 +16,7 @@ from accounts.models import *
 from auth.auth_token import generate_jwt_token
 
 # Utils
-from utils import hash_password, create_otp_and_store_in_cookie, validate_password
+from utils import hash_password, generate_otpcode, validate_password
 
 accounts_router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -35,7 +35,8 @@ async def register_user(ser: UserRegisterSchema, response: Response, db: Session
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    otp_status = create_otp_and_store_in_cookie(response, new_user.username)
+    otp_status = generate_otpcode(db, new_user.id)
+    response.set_cookie(key='user_id', value=new_user.id)
     if otp_status:
         return JSONResponse({'message': 'user is created, now proceed to activate the account'},
                             status_code=status.HTTP_201_CREATED)
@@ -44,14 +45,14 @@ async def register_user(ser: UserRegisterSchema, response: Response, db: Session
 
 # user activation route
 @accounts_router.post("/activate",)
-async def activate_user(ser: UserActivateSchema, username: str = Cookie(None), db: Session = Depends(get_db)):
+async def activate_user(ser: UserActivateSchema, user_id: int = Cookie(None), db: Session = Depends(get_db)):
     """
     with this route the user can activate their account with the otp code sent to them
     """
-    otp_object = db.query(Otp).filter_by(username=username).one_or_none()
+    otp_object = db.query(Otp).filter_by(user=user_id).one_or_none()
     if otp_object:
         if otp_object.code == ser.code:
-            user = db.query(User).filter_by(username=username).one_or_none()
+            user = db.query(User).filter_by(id=user_id).one_or_none()
             user.is_active = True
             db.delete(otp_object)
             db.commit()
@@ -62,11 +63,11 @@ async def activate_user(ser: UserActivateSchema, username: str = Cookie(None), d
 
 # get jwt token route
 @accounts_router.post("/get_token",)
-async def get_token(ser: GetTokenSchema):
+async def get_token(ser: GetTokenSchema, db: Session = Depends(get_db)):
     """
     with this route the user can get JWT token to authenticate in the app
     """
-    is_authenticated = validate_password(ser.username, ser.password)
+    is_authenticated = validate_password(db, ser.username, ser.password)
     if is_authenticated:
         jwt_token = generate_jwt_token(ser.username)
         return JSONResponse({'token': jwt_token}, status_code=status.HTTP_200_OK)
