@@ -2,14 +2,15 @@
 import os
 
 # pydantic models
-from pydantic import BaseSettings
-
-# DATABASE_URL = os.getenv("DATABASE_URL")
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     DEBUG: bool = True
-    DATABASE_URL: str = "postgresql://postgres:psotgres@localhost:5432/weblog"
+    DATABASE_URL: str = "postgresql://postgres:postgres@db:5432/weblog"
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_DB: str = "weblog"
     JWT_SECRET_KEY: str = 'jwt-secret-key'
 
 
