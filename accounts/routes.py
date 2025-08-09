@@ -47,3 +47,28 @@ async def activate_user(ser: UserActivateSchema, username: str = Cookie(None), d
             return JSONResponse({'message': 'user is active'}, status_code=status.HTTP_200_OK)
         return JSONResponse({'message': 'codes doesn\'t match.'}, status_code=status.HTTP_406_NOT_ACCEPTABLE)
     return JSONResponse({'message': 'no otp codes found'}, status_code=status.HTTP_404_NOT_FOUND)
+
+
+@accounts_router.post("/get_token",)
+async def get_token(ser: GetTokenSchema, db: Session = Depends(get_db)):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

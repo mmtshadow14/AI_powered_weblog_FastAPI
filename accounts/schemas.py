@@ -8,3 +8,8 @@ class UserRegisterSchema(BaseModel):
 
 class UserActivateSchema(BaseModel):
     code: int = Field(...)
+
+
+class GetTokenSchema(BaseModel):
+    username: str = Field(...)
+    password: str = Field(...)
