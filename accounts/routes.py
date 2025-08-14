@@ -64,7 +64,7 @@ async def activate_user(request: UserActivateSchema, user_id: int = Cookie(None)
 
 # get jwt token
 @accounts_router.post('/get_token', status_code=status.HTTP_201_CREATED)
-async def get_token(request: GetTokenSchema, db: Session = Depends(get_db)):
+async def get_token(request: GetTokenSchema, response: Response, db: Session = Depends(get_db)):
     """
     with this route the user can get a JWT access token if his account be active with sending his username and password
     """
@@ -72,23 +72,8 @@ async def get_token(request: GetTokenSchema, db: Session = Depends(get_db)):
     if user and verify_password(request.password, user.password):
         if user.is_active:
             jwt_token = create_access_token(user.id)
-            return {'token': jwt_token}
-        return HTTPException(status_code=status.HTTP_412_PRECONDITION_FAILED, detail='this user is not active')
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail='we couldn\'t verify you with provided information')
-
-
-# get jwt token
-@accounts_router.post('/get_token', status_code=status.HTTP_201_CREATED)
-async def get_token(request: GetTokenSchema, db: Session = Depends(get_db)):
-    """
-    with this route the user can get a JWT access token if his account be active with sending his username and password
-    """
-    user = db.query(User).filter_by(username=request.username).one_or_none()
-    if user and verify_password(request.password, user.password):
-        if user.is_active:
-            jwt_token = create_access_token(user.id)
-            return {'token': jwt_token}
+            response.set_cookie(key='jwt_token', value=jwt_token)
+            return {'message': 'token is all set now you are able to access to the routes.'}
         return HTTPException(status_code=status.HTTP_412_PRECONDITION_FAILED, detail='this user is not active')
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                         detail='we couldn\'t verify you with provided information')

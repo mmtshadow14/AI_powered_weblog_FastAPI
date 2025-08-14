@@ -17,14 +17,14 @@ db = Session()
 
 
 # create a JWT token
-def create_access_token(username):
+def create_access_token(user_id):
     """
     we will generate a JWT token for the user with placing his account ID in the payload of the JWT token.
     """
     pyload = {
-        'username': username,
+        'user_id': user_id,
         'iat': datetime.datetime.utcnow(),
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
     }
     return jwt.encode(pyload, settings.JWT_SECRET_KEY, algorithm='HS256')
 
