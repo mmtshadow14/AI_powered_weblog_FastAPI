@@ -1,5 +1,8 @@
+# Python packages
+import random
+
 # FastAPI models
-from fastapi import APIRouter, status, Response, Depends, Cookie, Request
+from fastapi import APIRouter, HTTPException, status, Response, Depends, Cookie, Request
 from starlette.responses import JSONResponse
 
 # SQLALCHEMY
@@ -10,68 +13,82 @@ from core.database import get_db
 
 # Accounts app schema
 from accounts.schemas import *
-from accounts.models import *
+from accounts.models import User, Otp
 
 # Authentication models
-from auth.auth_token import generate_jwt_token
+from auth.auth_token import create_access_token
 
 # Utils
-from utils import hash_password, generate_otpcode, validate_password
+from utils import generate_hash_password, generate_otpcode, verify_password
 
 accounts_router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 
-# user register route
-@accounts_router.post("/register", )
-async def register_user(ser: UserRegisterSchema, response: Response, db: Session = Depends(get_db)):
+# register a new user
+@accounts_router.post('/register', status_code=status.HTTP_201_CREATED, response_model=UserRegisterSchema)
+async def register_user(request: UserRegisterSchema, response: Response, db: Session = Depends(get_db)):
     """
-    with this route the user can register in the app
+    with this route we will create a new user and set and itp code for the user to activate his account and will store
+    his account id in his cookie to get it in the activate_user route to understand which account wants to be activated
     """
-    user_existence = db.query(User).filter_by(username=ser.username).one_or_none()
-    if user_existence:
-        return JSONResponse({'message': 'invalid username'}, status_code=status.HTTP_406_NOT_ACCEPTABLE)
-    hashed_password = hash_password(ser.password)
-    new_user = User(username=ser.username, password=hashed_password)
+    is_username_exists = db.query(User).filter_by(username=request.username).one_or_none()
+    if is_username_exists:
+        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail='invalid username')
+    hashed_password = generate_hash_password(request.password)
+    new_user = User(username=request.username, password=hashed_password)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     otp = generate_otpcode(new_user.id, response)
     db.add(otp)
     db.commit()
-    db.refresh(otp)
-    return JSONResponse({'message': 'user is created, now proceed to activate the account'},
-                        status_code=status.HTTP_201_CREATED)
+    return new_user
 
 
-# user activation route
-@accounts_router.post("/activate", )
-async def activate_user(ser: UserActivateSchema, user_id: int = Cookie(None), db: Session = Depends(get_db)):
+# activate a registered account
+@accounts_router.post('/activate', )
+async def activate_user(request: UserActivateSchema, user_id: int = Cookie(None), db: Session = Depends(get_db)):
     """
-    with this route the user can activate their account with the otp code sent to them
+    with this route the user can activate his account, and we will do it with the id that comes from the Cookie that
+     we saved it in the register_user route
     """
-    print('================================')
-    print(user_id)
-    print('================================')
-    otp_object = db.query(Otp).filter_by(user=user_id).first()
-    if otp_object is not None:
-        if otp_object.code == ser.code:
-            user = db.query(User).filter_by(id=user_id).one_or_none()
-            user.is_active = True
-            db.delete(otp_object)
-            db.commit()
-            return JSONResponse({'message': 'user is active'}, status_code=status.HTTP_200_OK)
-        return JSONResponse({'message': 'codes doesn\'t match.'}, status_code=status.HTTP_406_NOT_ACCEPTABLE)
-    return JSONResponse({'message': 'no otp codes found'}, status_code=status.HTTP_404_NOT_FOUND)
+    otp_obj = db.query(Otp).filter_by(user=user_id).one_or_none()
+    if otp_obj and otp_obj.code == request.code:
+        user = db.query(User).filter_by(id=user_id).one_or_none()
+        user.is_active = True
+        db.commit()
+        db.refresh(user)
+        return JSONResponse({'message': f'{user.username} has been activated successfully'})
+    raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail='invalid information')
 
 
-# get jwt token route
-@accounts_router.post("/get_token", )
-async def get_token(ser: GetTokenSchema, db: Session = Depends(get_db)):
+# get jwt token
+@accounts_router.post('/get_token', status_code=status.HTTP_201_CREATED)
+async def get_token(request: GetTokenSchema, db: Session = Depends(get_db)):
     """
-    with this route the user can get JWT token to authenticate in the app
+    with this route the user can get a JWT access token if his account be active with sending his username and password
     """
-    is_authenticated = validate_password(db, ser.username, ser.password)
-    if is_authenticated:
-        jwt_token = generate_jwt_token(ser.username)
-        return JSONResponse({'token': jwt_token}, status_code=status.HTTP_200_OK)
-    return JSONResponse({'message': 'invalid username or password.'}, status_code=status.HTTP_400_BAD_REQUEST)
+    user = db.query(User).filter_by(username=request.username).one_or_none()
+    if user and verify_password(request.password, user.password):
+        if user.is_active:
+            jwt_token = create_access_token(user.id)
+            return {'token': jwt_token}
+        return HTTPException(status_code=status.HTTP_412_PRECONDITION_FAILED, detail='this user is not active')
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail='we couldn\'t verify you with provided information')
+
+
+# get jwt token
+@accounts_router.post('/get_token', status_code=status.HTTP_201_CREATED)
+async def get_token(request: GetTokenSchema, db: Session = Depends(get_db)):
+    """
+    with this route the user can get a JWT access token if his account be active with sending his username and password
+    """
+    user = db.query(User).filter_by(username=request.username).one_or_none()
+    if user and verify_password(request.password, user.password):
+        if user.is_active:
+            jwt_token = create_access_token(user.id)
+            return {'token': jwt_token}
+        return HTTPException(status_code=status.HTTP_412_PRECONDITION_FAILED, detail='this user is not active')
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail='we couldn\'t verify you with provided information')

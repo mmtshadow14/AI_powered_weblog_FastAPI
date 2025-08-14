@@ -1,37 +1,27 @@
-# Python packages
+# python packages
+from passlib.hash import bcrypt
 import random
 
-# FastAPI
-from fastapi import Depends, HTTPException, status
-from starlette.responses import JSONResponse
+# fastapi packages
+from fastapi import APIRouter, Depends, HTTPException, status, Cookie, Response
 
-# password hash packages
-from passlib.hash import bcrypt
-
-# DB
-from core.database import Session
-
-# Account app models
-from accounts.models import User, Otp
+# app models
+from accounts.models import Otp
 
 
-def hash_password(password):
-    return bcrypt.hash(password)
+def generate_hash_password(password):
+    hashed_password = bcrypt.hash(password)
+    return hashed_password
 
 
-def validate_password(db: Session, username, password):
-    user = db.query(User).filter(User.username == username).one_or_none()
-    if not user or user.is_active is False:
-        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found or is not active')
-    password_validation = bcrypt.verify(password, user.password)
-    if password_validation:
-        return True
-    return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Incorrect password')
+def verify_password(password, hashed_password):
+    is_valid = bcrypt.verify(password, hashed_password)
+    return is_valid
 
 
 def generate_otpcode(user_id, response):
     otp_obj = Otp(user=user_id, code=random.randint(1000, 9999))
-    response.set_cookie(key='user_id', value=otp_obj.user)
+    response.set_cookie(key='user_id', value=user_id)
     print('==============================')
     print(otp_obj.code)
     print('==============================')
