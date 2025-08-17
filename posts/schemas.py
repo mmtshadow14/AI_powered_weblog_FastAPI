@@ -7,9 +7,9 @@ class create_post_schemas(BaseModel):
 
 
 class get_post_schemas(BaseModel):
-    id: int = Field()
-    user: int = Field()
-    title: str = Field()
-    description: str = Field()
-    tags = list[str]
-    likes = int = Field()
+    id: int
+    user: int
+    title: str
+    description: str
+    tags: list[str]
+    likes: int

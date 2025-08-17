@@ -1,5 +1,12 @@
+# Python packages
+import os
+from dotenv import load_dotenv
+
 # AI
 from AI.openai_conf import openai_client
+
+# loading .env file
+load_dotenv()
 
 
 # get keywords from AI
