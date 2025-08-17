@@ -24,8 +24,12 @@ from AI.ai_funcs import get_keywords
 posts_router = APIRouter(prefix="/posts", tags=["posts"])
 
 
+# get all posts
 @posts_router.get('/all', status_code=status.HTTP_200_OK, response_model=List[get_post_schemas])
 async def get_all_posts(jwt_token: str = Cookie(None), db: Session = Depends(get_db)):
+    """
+    with this route we will get all posts and show it to the user.
+    """
     user = retrieve_user_via_jwt(jwt_token)
     if user and user.active:
         posts = db.query(Post).all()
@@ -33,8 +37,14 @@ async def get_all_posts(jwt_token: str = Cookie(None), db: Session = Depends(get
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
 
 
+# create post
 @posts_router.post('/create', )
 async def create_post(ser: create_post_schemas, jwt_token: str = Cookie(None), db: Session = Depends(get_db)):
+    """
+    with this route the user can create a new post and with sending the description to the AI, AI will return its
+    keywords to us, so we can store them in the database and, we can use the key word to recognize what post is about
+    and show it to the user or not.
+    """
     user = retrieve_user_via_jwt(jwt_token)
     if user and user.is_active:
         keywords = get_keywords(ser.description)
@@ -46,4 +56,19 @@ async def create_post(ser: create_post_schemas, jwt_token: str = Cookie(None), d
         db.commit()
         db.refresh(new_post)
         return JSONResponse({'message': 'post created successfully.'})
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
+
+
+# get post with ID
+@posts_router.get('/get_post/{post_id}', status_code=status.HTTP_200_OK, response_model=[get_post_schemas])
+async def get_post_by_id(post_id: int, jwt_token: str = Cookie(None), db: Session = Depends(get_db)):
+    """
+    with this route we will get a post from the ID that user sends and if it exists, we will show it to the user.
+    """
+    user = retrieve_user_via_jwt(jwt_token)
+    if user and user.is_active:
+        post = db.query(Post).filter_by(Post.id == post_id).one_or_None()
+        if post:
+            return post
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='post not found')
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
