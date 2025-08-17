@@ -66,7 +66,7 @@ async def create_post(ser: create_post_schemas, jwt_token: str = Cookie(None), d
 
 
 # get post with ID
-@posts_router.get('/get_post/{post_id}', status_code=status.HTTP_200_OK, response_model=[get_post_schemas])
+@posts_router.get('/get_post/{post_id}', status_code=status.HTTP_200_OK, response_model=get_post_schemas)
 async def get_post_by_id(post_id: int, jwt_token: str = Cookie(None), db: Session = Depends(get_db)):
     """
     with this route we will get a post from the ID that user sends and if it exists, we will show it to the user.
