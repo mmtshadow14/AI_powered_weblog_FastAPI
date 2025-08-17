@@ -1,7 +1,7 @@
 # SQLALCHEMY
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, func
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, func, JSON
 from sqlalchemy.orm import relationship
 
 # CORE MODELS
@@ -17,6 +17,8 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String, unique=True)
     password = Column(String)
+
+    liked_tages = Column(JSON)
 
     created_at = Column(DateTime, default=func.now())
     is_admin = Column(Boolean, default=False)
