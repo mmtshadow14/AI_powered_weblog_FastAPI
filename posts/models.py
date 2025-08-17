@@ -13,3 +13,4 @@ class Post(Base):
     title = Column(String, nullable=False)
     description = Column(String, nullable=False)
     tags = Column(JSON)
+    likes = Column(Integer, default=0)
