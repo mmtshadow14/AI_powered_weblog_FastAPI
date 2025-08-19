@@ -99,6 +99,7 @@ async def like_post(post_id: int, response: Response, jwt_token: str = Cookie(No
             if like_status is not False:
                 db.delete(like_status)
                 db.commit()
+                post.likes -= 1
                 return JSONResponse({'message': 'your like is removed successfully.'})
             new_like_relation = Like(user=user.id, post_id=post.id)
             liked_tags = json.loads(liked)
@@ -106,7 +107,7 @@ async def like_post(post_id: int, response: Response, jwt_token: str = Cookie(No
             response.set_cookie(key="liked", value=json.dumps(updated_tags))
             for tag in post.tags:
                 user.liked_tags.append(tag)
-            post.likes += 1    
+            post.likes += 1
             db.add(new_like_relation)
             db.commit()
             db.refresh(user)
