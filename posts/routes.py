@@ -37,7 +37,7 @@ async def get_all_posts(jwt_token: str = Cookie(None), liked: Optional[str] = Co
     with this route we will get all posts and show it to the user.
     """
     user = retrieve_user_via_jwt(jwt_token)
-    if user and user.active:
+    if user and user.is_active:
         posts = db.query(Post).all()
         liked_tags = json.loads(liked)
         if not liked_tags:
@@ -106,6 +106,7 @@ async def like_post(post_id: int, response: Response, jwt_token: str = Cookie(No
             response.set_cookie(key="liked", value=json.dumps(updated_tags))
             for tag in post.tags:
                 user.liked_tags.append(tag)
+            post.likes += 1    
             db.add(new_like_relation)
             db.commit()
             db.refresh(user)
