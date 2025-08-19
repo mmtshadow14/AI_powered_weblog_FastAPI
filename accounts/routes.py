@@ -1,5 +1,5 @@
 # Python packages
-import random
+import json
 
 # FastAPI models
 from fastapi import APIRouter, HTTPException, status, Response, Depends, Cookie, Request
@@ -73,6 +73,7 @@ async def get_token(request: GetTokenSchema, response: Response, db: Session = D
         if user.is_active:
             jwt_token = create_access_token(user.id)
             response.set_cookie(key='jwt_token', value=jwt_token)
+            response.set_cookie(key='liked', value=json.dumps(user.liked_tages))
             return {'message': 'token is all set now you are able to access to the routes.'}
         return HTTPException(status_code=status.HTTP_412_PRECONDITION_FAILED, detail='this user is not active')
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,

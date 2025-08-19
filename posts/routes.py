@@ -32,14 +32,23 @@ posts_router = APIRouter(prefix="/posts", tags=["posts"])
 
 # get all posts
 @posts_router.get('/all', status_code=status.HTTP_200_OK, response_model=List[get_post_schemas])
-async def get_all_posts(jwt_token: str = Cookie(None), db: Session = Depends(get_db)):
+async def get_all_posts(jwt_token: str = Cookie(None), liked: Optional[str] = Cookie(default="[]"), db: Session = Depends(get_db)):
     """
     with this route we will get all posts and show it to the user.
     """
     user = retrieve_user_via_jwt(jwt_token)
     if user and user.active:
         posts = db.query(Post).all()
-        return posts
+        liked_tags = json.loads(liked)
+        if not liked_tags:
+            return posts
+        recommended_post_list_id = []
+        for post in posts:
+            tags_in_commen = len(set(post.tags) & set(liked_tags))
+            if tags_in_commen > 0:
+                recommended_post_list_id.append(post.id)
+        filtered_posts = [post for post in posts if post.id in recommended_post_list_id]
+        return filtered_posts
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
 
 
@@ -95,8 +104,11 @@ async def like_post(post_id: int, response: Response, jwt_token: str = Cookie(No
             liked_tags = json.loads(liked)
             updated_tags = list(set(liked_tags + post.tags))
             response.set_cookie(key="liked", value=json.dumps(updated_tags))
+            for tag in post.tags:
+                user.liked_tags.append(tag)
             db.add(new_like_relation)
             db.commit()
+            db.refresh(user)
             return JSONResponse({'message': 'your liked this post successfully.'})
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='post not found')
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
