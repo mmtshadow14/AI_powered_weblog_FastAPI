@@ -35,8 +35,8 @@ def generate_otpcode(user_id, response):
     return otp_obj
 
 
-def check_like_status(user_id, post_id, db: Session = Depends(get_db)):
-    like_relation = db.query(Like).filter(post_id=post_id, user=user_id).one_or_none()
+def check_like_status(user_id, post_id, db: Session):
+    like_relation = db.query(Like).filter_by(post_id=post_id, user=user_id).one_or_none()
     if like_relation:
         return like_relation
     return False

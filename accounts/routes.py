@@ -35,7 +35,7 @@ async def register_user(request: UserRegisterSchema, response: Response, db: Ses
     if is_username_exists:
         raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail='invalid username')
     hashed_password = generate_hash_password(request.password)
-    new_user = User(username=request.username, password=hashed_password)
+    new_user = User(username=request.username, password=hashed_password, liked_tages=[])
     db.add(new_user)
     db.commit()
     db.refresh(new_user)

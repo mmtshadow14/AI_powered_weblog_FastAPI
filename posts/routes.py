@@ -41,7 +41,12 @@ async def get_all_posts(jwt_token: str = Cookie(None), liked: Optional[str] = Co
     if user and user.is_active:
         posts = db.query(Post).all()
         liked_tags = json.loads(liked)
-        if not liked_tags:
+        print('==================================')
+        print(liked_tags)
+        print('==================================')
+        print(user.liked_tages)
+        print('==================================')
+        if liked_tags == []:
             return posts
         recommended_post_list_id = []
         for post in posts:
@@ -102,23 +107,21 @@ async def like_post(post_id: int, response: Response, jwt_token: str = Cookie(No
     if user and user.is_active:
         post = db.query(Post).filter_by(id=post_id).one_or_none()
         if post:
-            like_status = check_like_status(user.id, post.id)
-            if like_status is not False:
+            like_status = check_like_status(user.id, post.id, db)
+            if like_status:
                 db.delete(like_status)
-                db.commit()
                 post.likes -= 1
+                db.commit()
                 return JSONResponse({'message': 'your like is removed successfully.'})
             new_like_relation = Like(user=user.id, post_id=post.id)
             liked_tags = json.loads(liked)
-            updated_tags = list(set(liked_tags + post.tags))
-            user.liked_tages.append(post.tags)
+            post_tags = post.tags
+            updated_tags = list(set(liked_tags + post_tags))
+            user.liked_tages = updated_tags
             response.set_cookie(key="liked", value=json.dumps(updated_tags))
-            for tag in post.tags:
-                user.liked_tags.append(tag)
             post.likes += 1
             db.add(new_like_relation)
             db.commit()
-            db.refresh(user)
             return JSONResponse({'message': 'your liked this post successfully.'})
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='post not found')
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
