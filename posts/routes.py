@@ -32,14 +32,29 @@ posts_router = APIRouter(prefix="/posts", tags=["posts"])
 
 # get all posts
 @posts_router.get('/all', status_code=status.HTTP_200_OK, response_model=List[get_post_schemas])
-async def get_all_posts(jwt_token: str = Cookie(None), db: Session = Depends(get_db)):
+async def get_all_posts(jwt_token: str = Cookie(None), liked: Optional[str] = Cookie(default="[]"),
+                        db: Session = Depends(get_db)):
     """
-    with this route we will get all posts and show it to the user.
+    with this route we will get all posts that are in commen with the users interests and returns it to the user
     """
     user = retrieve_user_via_jwt(jwt_token)
-    if user and user.active:
+    if user and user.is_active:
         posts = db.query(Post).all()
-        return posts
+        liked_tags = json.loads(liked)
+        print('==================================')
+        print(liked_tags)
+        print('==================================')
+        print(user.liked_tages)
+        print('==================================')
+        if user.liked_tages == []:
+            return posts
+        recommended_post_list_id = []
+        for post in posts:
+            tags_in_commen = len(set(post.tags) & set(user.liked_tages))
+            if tags_in_commen > 0:
+                recommended_post_list_id.append(post.id)
+        filtered_posts = [post for post in posts if post.id in recommended_post_list_id]
+        return filtered_posts
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
 
 
@@ -66,7 +81,7 @@ async def create_post(ser: create_post_schemas, jwt_token: str = Cookie(None), d
 
 
 # get post with ID
-@posts_router.get('/get_post/{post_id}', status_code=status.HTTP_200_OK, response_model=[get_post_schemas])
+@posts_router.get('/get_post/{post_id}', status_code=status.HTTP_200_OK, response_model=get_post_schemas)
 async def get_post_by_id(post_id: int, jwt_token: str = Cookie(None), db: Session = Depends(get_db)):
     """
     with this route we will get a post from the ID that user sends and if it exists, we will show it to the user.
@@ -80,37 +95,97 @@ async def get_post_by_id(post_id: int, jwt_token: str = Cookie(None), db: Sessio
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
 
 
+# like post route
 @posts_router.get('/like_post/{post_id}', )
-async def like_post(post_id: int, response: Response, jwt_token: str = Cookie(None), liked: Optional[str] = Cookie(default="[]"), db: Session = Depends(get_db)):
+async def like_post(post_id: int, response: Response, jwt_token: str = Cookie(None),
+                    liked: Optional[str] = Cookie(default="[]"), db: Session = Depends(get_db)):
+    """
+    with this route the user can like a post and with this we will understand the user's interests and store
+    the post tags in his cookie and his user obj to recommend posts which meets his interests.
+    """
     user = retrieve_user_via_jwt(jwt_token)
     if user and user.is_active:
+        user = db.merge(user)
         post = db.query(Post).filter_by(id=post_id).one_or_none()
         if post:
-            like_status = check_like_status(user.id, post.id)
-            if like_status is not False:
+            like_status = check_like_status(user.id, post.id, db)
+            if like_status:
                 db.delete(like_status)
+                post.likes -= 1
                 db.commit()
                 return JSONResponse({'message': 'your like is removed successfully.'})
             new_like_relation = Like(user=user.id, post_id=post.id)
             liked_tags = json.loads(liked)
-            updated_tags = list(set(liked_tags + post.tags))
+            post_tags = post.tags
+            updated_tags = list(set(liked_tags + post_tags))
+            user.liked_tages = updated_tags
             response.set_cookie(key="liked", value=json.dumps(updated_tags))
+            post.likes += 1
             db.add(new_like_relation)
             db.commit()
+            db.refresh(user)
             return JSONResponse({'message': 'your liked this post successfully.'})
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='post not found')
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
 
 
+# get all user's posts
+@posts_router.get('/my_posts', status_code=status.HTTP_200_OK, response_model=List[get_post_schemas])
+async def get_all_user_posts(jwt_token: str = Cookie(None), db: Session = Depends(get_db)):
+    """
+    with this route user can get all the posts he posted.
+    """
+    user = retrieve_user_via_jwt(jwt_token)
+    if user and user.is_active:
+        user_posts = db.query(Post).filter_by(user=user.id).all()
+        if user_posts:
+            return user_posts
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='you haven\'t post anything yet.')
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
 
 
+# delete post route
+@posts_router.delete('/delete_post/{post_id}',)
+async def delete_post(post_id: int, jwt_token: str = Cookie(None), db: Session = Depends(get_db)):
+    """
+    with this route the user can delete the posts that he owns.
+    """
+    user = retrieve_user_via_jwt(jwt_token)
+    if user and user.is_active:
+        post = db.query(Post).filter_by(id=post_id).one_or_none()
+        if post:
+            if post.user == user.id:
+                db.delete(post)
+                db.commit()
+                return JSONResponse({'massage': 'post deleted successfully.'})
+            return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='you are not the owner of the post.')
+        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='no post found.')
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
 
 
-
-
-
-
-
+# update post route
+@posts_router.put('/update_post/{post_id}',)
+async def update_post(post_id: int, ser: create_post_schemas, jwt_token: str = Cookie(None), db: Session = Depends(get_db)):
+    """
+    with this route user can update the posts he owns and if any changes needs to be done with the tags of the post
+    the description will be sent to AI and the AI will generate the new keywords, and we will store the tags in the
+    post object again.
+    """
+    user = retrieve_user_via_jwt(jwt_token)
+    if user and user.is_active:
+        post = db.query(Post).filter_by(id=post_id).one_or_none()
+        if post:
+            if post.user == user.id:
+                keywords = get_keywords(ser.description)
+                post.title = ser.title
+                post.description = ser.description
+                post.tags = keywords
+                db.commit()
+                db.refresh(post)
+                return JSONResponse({'massage': 'post updated successfully.'})
+            return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='you are not the owner of the post.')
+        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='no post found.')
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
 
 
 
