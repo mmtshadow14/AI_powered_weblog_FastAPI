@@ -46,11 +46,11 @@ async def get_all_posts(jwt_token: str = Cookie(None), liked: Optional[str] = Co
         print('==================================')
         print(user.liked_tages)
         print('==================================')
-        if liked_tags == []:
+        if user.liked_tages == []:
             return posts
         recommended_post_list_id = []
         for post in posts:
-            tags_in_commen = len(set(post.tags) & set(liked_tags))
+            tags_in_commen = len(set(post.tags) & set(user.liked_tages))
             if tags_in_commen > 0:
                 recommended_post_list_id.append(post.id)
         filtered_posts = [post for post in posts if post.id in recommended_post_list_id]
@@ -105,6 +105,7 @@ async def like_post(post_id: int, response: Response, jwt_token: str = Cookie(No
     """
     user = retrieve_user_via_jwt(jwt_token)
     if user and user.is_active:
+        user = db.merge(user)
         post = db.query(Post).filter_by(id=post_id).one_or_none()
         if post:
             like_status = check_like_status(user.id, post.id, db)
@@ -122,6 +123,7 @@ async def like_post(post_id: int, response: Response, jwt_token: str = Cookie(No
             post.likes += 1
             db.add(new_like_relation)
             db.commit()
+            db.refresh(user)
             return JSONResponse({'message': 'your liked this post successfully.'})
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='post not found')
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
