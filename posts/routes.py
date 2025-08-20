@@ -151,7 +151,7 @@ async def delete_post(post_id: int, jwt_token: str = Cookie(None), db: Session =
     with this route the user can delete the posts that he owns.
     """
     user = retrieve_user_via_jwt(jwt_token)
-    if user and user.is_actie:
+    if user and user.is_active:
         post = db.query(Post).filter_by(id=post_id).one_or_none()
         if post:
             if post.user == user.id:
