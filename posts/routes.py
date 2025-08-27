@@ -1,5 +1,6 @@
 # Python Packages
 import json
+import asyncio
 
 # FastAPI models
 from fastapi import APIRouter, Cookie, Depends, HTTPException, status, Response
@@ -27,6 +28,9 @@ from AI.ai_funcs import get_keywords
 # utils
 from utils import check_like_status
 
+# Redis
+from core.redis_conf import redis_client
+
 posts_router = APIRouter(prefix="/posts", tags=["posts"])
 
 
@@ -39,7 +43,6 @@ async def get_all_posts(jwt_token: str = Cookie(None), liked: Optional[str] = Co
     """
     user = retrieve_user_via_jwt(jwt_token)
     if user and user.is_active:
-        posts = db.query(Post).all()
         liked_tags = json.loads(liked)
         print('==================================')
         print(liked_tags)
@@ -47,7 +50,19 @@ async def get_all_posts(jwt_token: str = Cookie(None), liked: Optional[str] = Co
         print(user.liked_tages)
         print('==================================')
         if user.liked_tages == []:
+            """
+            redis is used here to cache the posts.
+            """
+            cached_posts_raw = await redis_client.get('all_posts')
+            if cached_posts_raw:
+                cached_posts = json.loads(cached_posts_raw)
+                return cached_posts
+            await asyncio.sleep(5)
+            posts = db.query(Post).all()
+            posts_data = [get_post_schemas.model_validate(post, from_attributes=True).dict() for post in posts]
+            await redis_client.set('all_posts', json.dumps(posts_data), ex=300)
             return posts
+        posts = db.query(Post).all()
         recommended_post_list_id = []
         for post in posts:
             tags_in_commen = len(set(post.tags) & set(user.liked_tages))

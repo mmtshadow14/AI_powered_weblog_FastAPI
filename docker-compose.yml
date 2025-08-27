@@ -10,10 +10,12 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=weblog
+      - REDIS_URL=redis://redis:6379/0
     networks:
       - app-network
     depends_on:
       - db
+      - redis
     restart: unless-stopped
 
   db:
@@ -26,6 +28,15 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    ports:
+      - "6379:6379"
     networks:
       - app-network
     restart: unless-stopped
