@@ -18,6 +18,42 @@ services:
       - redis
     restart: unless-stopped
 
+  worker:
+    build: .
+    container_name: celery_worker
+    command: celery -A core.celery_conf.celery_app worker --loglevel=info
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/weblog
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_BACKEND_URL=redis://redis:6379/0
+    networks:
+      - app-network
+    depends_on:
+      - redis
+      - db
+    restart: unless-stopped
+
+  beat:
+    build: .
+    container_name: celery_beat
+    command: celery -A core.celery_conf.celery_app beat --loglevel=info
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/weblog
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_BACKEND_URL=redis://redis:6379/0
+    networks:
+      - app-network
+    depends_on:
+      - redis
+      - db
+    restart: unless-stopped
+
   db:
     image: postgres:13-alpine
     environment:
