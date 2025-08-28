@@ -31,6 +31,9 @@ from utils import check_like_status
 # Redis
 from core.redis_conf import redis_client
 
+# Celery
+from core.celery_conf import create_new_post
+
 posts_router = APIRouter(prefix="/posts", tags=["posts"])
 
 
@@ -91,7 +94,7 @@ async def create_post(ser: create_post_schemas, jwt_token: str = Cookie(None), d
         db.add(new_post)
         db.commit()
         db.refresh(new_post)
-        return JSONResponse({'message': 'post created successfully.'})
+        return JSONResponse({'message': 'new post is created successfully.'})
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
 
 
@@ -203,7 +206,21 @@ async def update_post(post_id: int, ser: create_post_schemas, jwt_token: str = C
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
 
 
-
+@posts_router.post('/create_with_celery', )
+async def create_post(ser: create_post_schemas, jwt_token: str = Cookie(None)):
+    """
+    with this route the user can create a new post and with sending the description to the AI, AI will return its
+    keywords to us, so we can store them in the database and, we can use the key word to recognize what post is about
+    and show it to the user or not.
+    """
+    user = retrieve_user_via_jwt(jwt_token)
+    if user and user.is_active:
+        """
+        celery is used here.
+        """
+        create_new_post.delay(user.id, ser.title, ser.description)
+        return JSONResponse({'message': 'your post will be posted soon.'})
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='user not found')
 
 
 
